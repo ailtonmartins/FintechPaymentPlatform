@@ -1,16 +1,82 @@
-# Compiled class file
+# Java
 *.class
 
-# Log file
+# Logs
 *.log
+logs/
 
-# BlueJ files
+# Gradle
+.gradle/
+build/
+**/build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+!**/gradle/wrapper/gradle-wrapper.jar
+
+# Spring Boot / generated helper files
+HELP.md
+
+# IDE - IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+**/out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# IDE - Eclipse / STS
+.apt_generated/
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+bin/
+**/bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+# IDE - NetBeans
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# IDE - VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment and local config
+.env
+.env.*
+!.env.example
+application-local.yml
+application-local.yaml
+application-*.local.yml
+application-*.local.yaml
+
+# Docker local volumes / generated data
+docker-data/
+data/
+
+# Test and coverage outputs
+coverage/
+target/
+
+# BlueJ
 *.ctxt
 
-# Mobile Tools for Java (J2ME)
+# Mobile Tools for Java
 .mtj.tmp/
 
-# Package Files #
+# Package files
 *.jar
 *.war
 *.nar
@@ -18,7 +84,11 @@
 *.zip
 *.tar.gz
 *.rar
+!gradle/wrapper/gradle-wrapper.jar
+!**/gradle/wrapper/gradle-wrapper.jar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+# JVM crash logs
 hs_err_pid*
 replay_pid*
+
+*_CONTEXT.*

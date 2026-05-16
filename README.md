@@ -125,7 +125,7 @@ Gera um novo access token sem necessidade de login.
 ```bash
 fintech-platform/
 │
-├── docker-compose.yml
+├── docker-compose.yaml
 │
 ├── user-service/
 ├── account-service/
