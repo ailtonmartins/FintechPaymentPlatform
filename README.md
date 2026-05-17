@@ -51,6 +51,7 @@ PostgreSQL / Redis
 
 ---
 
+
 ## 🔐 Autenticação e Segurança
 
 O sistema utiliza autenticação baseada em **JWT (JSON Web Token)** com suporte a **Refresh Token**.
@@ -97,6 +98,7 @@ Gera um novo access token sem necessidade de login.
 * Spring Boot
 * Spring Security
 * Spring Data JPA
+* OpenAPI/Swagger
 
 ### Arquitetura
 
@@ -131,6 +133,46 @@ fintech-platform/
 ├── account-service/
 ├── transaction-service/
 └── payment-service/
+```
+
+Essa divisão segue uma Clean Architecture simples:
+
+* `domain`: regras centrais, entidades, contratos e exceções.
+* `application`: casos de uso específicos por operação, commands, results e portas técnicas.
+* `infrastructure`: detalhes técnicos como JWT, Spring Security, JPA e configurações.
+* `presentation`: controllers e DTOs da API.
+
+---
+
+## 📚 Documentação da API
+
+O `user-service` usa OpenAPI/Swagger com `springdoc-openapi`.
+
+Com o serviço rodando localmente na porta `8081`, acesse:
+
+```text
+Swagger UI: http://localhost:8081/swagger-ui/index.html
+OpenAPI JSON: http://localhost:8081/v3/api-docs
+```
+
+Endpoints documentados atualmente:
+
+```text
+POST /api/v1/auth/register
+POST /api/v1/auth/login
+POST /api/v1/auth/refresh-token
+
+GET  /api/v1/me
+GET  /api/v1/users/{id}
+GET  /api/v1/users?email=
+```
+
+As rotas de documentação ficam liberadas no Spring Security:
+
+```text
+/swagger-ui/**
+/swagger-ui.html
+/v3/api-docs/**
 ```
 
 ---
