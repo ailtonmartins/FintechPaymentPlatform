@@ -11,7 +11,7 @@ import com.ailtonmartins.userservice.application.usecase.RegisterUserUseCase;
 import com.ailtonmartins.userservice.domain.exception.InvalidCredentialsException;
 import com.ailtonmartins.userservice.domain.exception.UserAlreadyExistsException;
 import com.ailtonmartins.userservice.domain.model.Role;
-import com.ailtonmartins.userservice.presentation.handler.GlobalExceptionHandler;
+import com.ailtonmartins.userservice.infrastructure.security.JwtAuthenticationFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -46,6 +46,9 @@ class AuthControllerTest {
 
     @MockitoBean
     private RefreshAccessTokenUseCase refreshAccessTokenUseCase;
+
+    @MockitoBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Test
     void deveCadastrarUsuario() throws Exception {

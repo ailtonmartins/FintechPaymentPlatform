@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,6 +27,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/users")
 @Tag(name = "Usuarios", description = "Endpoints de consulta de usuarios")
+@PreAuthorize("hasRole('ADMIN')")
 public class UserController {
 
     private final FindUserByIdUseCase findUserByIdUseCase;
@@ -50,6 +52,11 @@ public class UserController {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             ),
             @ApiResponse(
+                    responseCode = "403",
+                    description = "Acesso negado para usuarios sem role ADMIN",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
                     responseCode = "404",
                     description = "Usuario nao encontrado",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
@@ -71,6 +78,11 @@ public class UserController {
             @ApiResponse(
                     responseCode = "400",
                     description = "Parametro e-mail ausente ou invalido",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Acesso negado para usuarios sem role ADMIN",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             ),
             @ApiResponse(

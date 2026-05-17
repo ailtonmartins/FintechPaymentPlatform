@@ -43,4 +43,22 @@ class JwtAccessTokenProviderTest {
 
         assertThat(Set.of(firstToken, secondToken)).hasSize(2);
     }
+
+    @Test
+    void deveValidarTokenEExtrairClaims() {
+        JwtAccessTokenProvider accessTokenProvider = new JwtAccessTokenProvider(
+                "segredo-de-teste",
+                900000L
+        );
+        User user = new User("Ailton Martins", "ailton@email.com", "senha-criptografada");
+        user.addRole(Role.ADMIN);
+
+        String token = accessTokenProvider.generate(user);
+
+        JwtAccessTokenProvider.JwtUserClaims claims = accessTokenProvider.validateAndExtract(token);
+
+        assertThat(claims.userId()).isEqualTo(user.getId());
+        assertThat(claims.email()).isEqualTo("ailton@email.com");
+        assertThat(claims.roles()).containsExactlyInAnyOrder("USER", "ADMIN");
+    }
 }

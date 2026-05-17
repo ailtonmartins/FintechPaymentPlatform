@@ -5,6 +5,7 @@ import com.ailtonmartins.userservice.application.usecase.FindUserByEmailUseCase;
 import com.ailtonmartins.userservice.application.usecase.FindUserByIdUseCase;
 import com.ailtonmartins.userservice.domain.exception.UserNotFoundException;
 import com.ailtonmartins.userservice.domain.model.Role;
+import com.ailtonmartins.userservice.infrastructure.security.JwtAuthenticationFilter;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -35,6 +36,9 @@ class UserControllerTest {
 
     @MockitoBean
     private FindUserByEmailUseCase findUserByEmailUseCase;
+
+    @MockitoBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Test
     void deveBuscarUsuarioPorId() throws Exception {
