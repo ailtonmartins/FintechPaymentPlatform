@@ -162,6 +162,7 @@ POST /api/v1/auth/register
 POST /api/v1/auth/login
 POST /api/v1/auth/refresh-token
 
+GET  /api/v1/me
 GET  /api/v1/users/{id}
 GET  /api/v1/users?email=
 ```

@@ -71,6 +71,32 @@ class SecurityConfigTest {
     }
 
     @Test
+    void devePermitirMeParaUserAutenticado() throws Exception {
+        User user = new User("User", "user@email.com", "senha-criptografada");
+        String token = jwtAccessTokenProvider.generate(user);
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(findUserByIdUseCase.execute(user.getId())).thenReturn(new UserResult(
+                user.getId(),
+                user.getName(),
+                user.getEmail(),
+                user.getRoles(),
+                user.isActive(),
+                user.getCreatedAt(),
+                user.getUpdatedAt()
+        ));
+
+        mockMvc.perform(get("/api/v1/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void deveNegarMeSemToken() throws Exception {
+        mockMvc.perform(get("/api/v1/me"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void deveNegarUserControllerSemToken() throws Exception {
         mockMvc.perform(get("/api/v1/users").param("email", "ailton@email.com"))
                 .andExpect(status().isForbidden());
