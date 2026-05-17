@@ -1,14 +1,28 @@
 package com.ailtonmartins.userservice.presentation.dto.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Schema(description = "Resposta padronizada de erro")
 public record ErrorResponse(
+        @Schema(description = "Data e hora do erro")
         LocalDateTime timestamp,
+
+        @Schema(description = "Status HTTP", example = "400")
         int status,
+
+        @Schema(description = "Descricao do status HTTP", example = "Bad Request")
         String error,
+
+        @Schema(description = "Mensagem de erro em portugues", example = "Requisicao invalida")
         String message,
+
+        @Schema(description = "Caminho da requisicao", example = "/api/v1/auth/register")
         String path,
+
+        @Schema(description = "Erros de validacao por campo")
         List<FieldErrorResponse> fields
 ) {
 
