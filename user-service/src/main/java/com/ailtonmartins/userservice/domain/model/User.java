@@ -37,6 +37,9 @@ public class User {
         this.email = requireText(email, "email").toLowerCase();
         this.password = requireText(password, "password");
         this.roles = new HashSet<>(Objects.requireNonNull(roles, "roles nao pode ser nulo"));
+        if (this.roles.isEmpty()) {
+            throw new IllegalArgumentException("roles nao pode estar vazio");
+        }
         this.active = active;
         this.createdAt = Objects.requireNonNull(createdAt, "createdAt nao pode ser nulo");
         this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt nao pode ser nulo");
