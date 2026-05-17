@@ -51,6 +51,7 @@ PostgreSQL / Redis
 
 ---
 
+
 ## 🔐 Autenticação e Segurança
 
 O sistema utiliza autenticação baseada em **JWT (JSON Web Token)** com suporte a **Refresh Token**.
@@ -132,6 +133,13 @@ fintech-platform/
 ├── transaction-service/
 └── payment-service/
 ```
+
+Essa divisão segue uma Clean Architecture simples:
+
+* `domain`: regras centrais, entidades, contratos e exceções.
+* `application`: casos de uso e serviços de aplicação.
+* `infrastructure`: detalhes técnicos como JWT, Spring Security, JPA e configurações.
+* `presentation`: controllers e DTOs da API.
 
 ---
 
