@@ -13,9 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
-import java.util.Collection;
 import java.util.Date;
-import java.util.List;
 import java.util.UUID;
 
 @Component
@@ -40,7 +38,6 @@ public class JwtAccessTokenProvider implements AccessTokenProvider {
         return Jwts.builder()
                 .subject(user.getId().toString())
                 .claim("email", user.getEmail())
-                .claim("roles", user.getRoles().stream().map(Enum::name).toList())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiresAt))
                 .signWith(secretKey)
@@ -56,20 +53,8 @@ public class JwtAccessTokenProvider implements AccessTokenProvider {
 
         UUID userId = UUID.fromString(claims.getSubject());
         String email = claims.get("email", String.class);
-        List<String> roles = extractRoles(claims);
 
-        return new JwtUserClaims(userId, email, roles);
-    }
-
-    private static List<String> extractRoles(Claims claims) {
-        Object roles = claims.get("roles");
-        if (roles instanceof Collection<?> collection) {
-            return collection.stream()
-                    .map(String::valueOf)
-                    .toList();
-        }
-
-        return List.of();
+        return new JwtUserClaims(userId, email);
     }
 
     private static byte[] sha256(String value) {
@@ -83,8 +68,7 @@ public class JwtAccessTokenProvider implements AccessTokenProvider {
 
     public record JwtUserClaims(
             UUID userId,
-            String email,
-            List<String> roles
+            String email
     ) {
     }
 }

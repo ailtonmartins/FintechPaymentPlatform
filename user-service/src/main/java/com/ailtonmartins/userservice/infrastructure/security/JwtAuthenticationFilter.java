@@ -1,5 +1,7 @@
 package com.ailtonmartins.userservice.infrastructure.security;
 
+import com.ailtonmartins.userservice.domain.model.User;
+import com.ailtonmartins.userservice.domain.repository.UserRepository;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -21,9 +23,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtAccessTokenProvider jwtAccessTokenProvider;
+    private final UserRepository userRepository;
 
-    public JwtAuthenticationFilter(JwtAccessTokenProvider jwtAccessTokenProvider) {
+    public JwtAuthenticationFilter(JwtAccessTokenProvider jwtAccessTokenProvider, UserRepository userRepository) {
         this.jwtAccessTokenProvider = jwtAccessTokenProvider;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -41,17 +45,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             JwtAccessTokenProvider.JwtUserClaims claims = jwtAccessTokenProvider.validateAndExtract(token);
-            List<SimpleGrantedAuthority> authorities = claims.roles()
+            User user = userRepository.findById(claims.userId())
+                    .filter(User::isActive)
+                    .orElse(null);
+
+            if (user == null) {
+                SecurityContextHolder.clearContext();
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            List<SimpleGrantedAuthority> authorities = user.getRoles()
                     .stream()
-                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name()))
                     .toList();
 
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    claims.userId(),
+                    user.getId(),
                     null,
                     authorities
             );
-            authentication.setDetails(claims.email());
+            authentication.setDetails(user.getEmail());
             SecurityContextHolder.getContext().setAuthentication(authentication);
         } catch (JwtException | IllegalArgumentException exception) {
             SecurityContextHolder.clearContext();

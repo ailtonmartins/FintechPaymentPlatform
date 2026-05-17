@@ -59,6 +59,5 @@ class JwtAccessTokenProviderTest {
 
         assertThat(claims.userId()).isEqualTo(user.getId());
         assertThat(claims.email()).isEqualTo("ailton@email.com");
-        assertThat(claims.roles()).containsExactlyInAnyOrder("USER", "ADMIN");
     }
 }

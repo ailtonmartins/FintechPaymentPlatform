@@ -5,6 +5,7 @@ import com.ailtonmartins.userservice.application.usecase.FindUserByEmailUseCase;
 import com.ailtonmartins.userservice.application.usecase.FindUserByIdUseCase;
 import com.ailtonmartins.userservice.domain.model.Role;
 import com.ailtonmartins.userservice.domain.model.User;
+import com.ailtonmartins.userservice.domain.repository.UserRepository;
 import com.ailtonmartins.userservice.infrastructure.security.JwtAccessTokenProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Optional;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -39,11 +41,15 @@ class SecurityConfigTest {
     @MockitoBean
     private FindUserByEmailUseCase findUserByEmailUseCase;
 
+    @MockitoBean
+    private UserRepository userRepository;
+
     @Test
     void devePermitirUserControllerParaAdmin() throws Exception {
         User admin = new User("Admin", "admin@email.com", "senha-criptografada");
         admin.addRole(Role.ADMIN);
         String token = jwtAccessTokenProvider.generate(admin);
+        when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
         when(findUserByEmailUseCase.execute("ailton@email.com")).thenReturn(userResult());
 
         mockMvc.perform(get("/api/v1/users")
@@ -56,6 +62,7 @@ class SecurityConfigTest {
     void deveNegarUserControllerParaUserSemAdmin() throws Exception {
         User user = new User("User", "user@email.com", "senha-criptografada");
         String token = jwtAccessTokenProvider.generate(user);
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
 
         mockMvc.perform(get("/api/v1/users")
                         .param("email", "ailton@email.com")
