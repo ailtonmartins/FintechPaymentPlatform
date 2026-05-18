@@ -53,6 +53,13 @@ PostgreSQL / Redis
 
 Servicos implementados:
 
+- `api-gateway`
+  - Porta publica `8080`
+  - Roteamento para `user-service` e `account-service`
+  - Validacao local de JWT antes de encaminhar rotas protegidas
+  - Encaminhamento de headers internos `X-Authenticated-User-Id` e `X-Authenticated-User-Email`
+  - Rotas publicas para login, cadastro, refresh token, health check e OpenAPI JSON dos servicos
+
 - `user-service`
   - Cadastro de usuario
   - Login
@@ -75,7 +82,6 @@ Ainda pendentes:
 
 - `transaction-service`
 - `payment-service`
-- API Gateway
 - Kafka producers/consumers
 - Idempotencia e resiliencia do fluxo financeiro
 
@@ -133,6 +139,8 @@ O `account-service` valida o JWT localmente usando o mesmo `jwt.secret`. Ele val
 
 O `account-service` nao acessa o banco do `user-service`. Isso preserva o isolamento entre microsservicos. A verificacao de usuario ativo deve evoluir depois via API Gateway, introspection ou eventos/cache local de usuarios.
 
+O `api-gateway` valida JWT antes de encaminhar rotas protegidas. Os servicos internos ainda mantem validacao JWT propria, funcionando como defesa adicional enquanto nao houver um contrato final de autenticacao interna.
+
 ## Documentacao Da API
 
 Swagger UI:
@@ -145,6 +153,11 @@ account-service: http://localhost:8082/swagger-ui/index.html
 OpenAPI JSON:
 
 ```text
+via gateway:
+user-service:    http://localhost:8080/user-service/v3/api-docs
+account-service: http://localhost:8080/account-service/v3/api-docs
+
+direto no servico:
 user-service:    http://localhost:8081/v3/api-docs
 account-service: http://localhost:8082/v3/api-docs
 ```
@@ -172,14 +185,25 @@ POST /api/v1/accounts/{id}/debit
 O `docker-compose.yaml` sobe:
 
 - PostgreSQL 15
-- Zookeeper
-- Kafka
+- Zookeeper 7.6.1
+- Kafka 7.6.1
+- `user-service`
+- `account-service`
+- `api-gateway`
 
 Comandos:
 
 ```bash
 docker compose up -d
 ```
+
+Endpoint publico principal:
+
+```text
+http://localhost:8080
+```
+
+Os servicos internos nao publicam `8081` e `8082` no host quando executados via Docker Compose. Eles ficam acessiveis dentro da rede Docker e devem ser chamados pelo gateway.
 
 Rodar os servicos:
 
@@ -218,7 +242,7 @@ transaction-service atualiza a transacao para COMPLETED ou FAILED
 
 ## Proxima Etapa
 
-Implementar Kafka e iniciar o `transaction-service`, mantendo banco proprio, migrations com Flyway, endpoints documentados e testes automatizados.
+Implementar producers/consumers Kafka e iniciar o `transaction-service`, mantendo banco proprio, migrations com Flyway, endpoints documentados, idempotencia planejada e testes automatizados.
 
 ## Autor
 
