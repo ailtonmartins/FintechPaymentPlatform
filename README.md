@@ -59,6 +59,7 @@ Servicos implementados:
   - Validacao local de JWT antes de encaminhar rotas protegidas
   - Encaminhamento de headers internos `X-Authenticated-User-Id` e `X-Authenticated-User-Email`
   - Rotas publicas para login, cadastro, refresh token, health check e OpenAPI JSON dos servicos
+  - Swagger UI centralizada dos servicos
 
 - `user-service`
   - Cadastro de usuario
@@ -143,7 +144,13 @@ O `api-gateway` valida JWT antes de encaminhar rotas protegidas. Os servicos int
 
 ## Documentacao Da API
 
-Swagger UI:
+Swagger UI centralizada:
+
+```text
+api-gateway: http://localhost:8080/swagger-ui/index.html
+```
+
+Swagger UI direta por servico, quando rodar os servicos fora do Compose expondo suas portas:
 
 ```text
 user-service:    http://localhost:8081/swagger-ui/index.html

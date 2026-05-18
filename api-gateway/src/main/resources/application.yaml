@@ -40,5 +40,15 @@ management:
       exposure:
         include: health,info,gateway
 
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: User Service
+        url: /user-service/v3/api-docs
+      - name: Account Service
+        url: /account-service/v3/api-docs
+    disable-swagger-default-url: true
+
 jwt:
   secret: ${JWT_SECRET}
