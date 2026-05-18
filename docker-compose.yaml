@@ -1,15 +1,15 @@
-version: '3.8'
-
 services:
 
   postgres:
     image: postgres:15
     environment:
-      POSTGRES_DB: fintech
+      POSTGRES_DB: postgres
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
+    volumes:
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
 
   zookeeper:
     image: confluentinc/cp-zookeeper:latest

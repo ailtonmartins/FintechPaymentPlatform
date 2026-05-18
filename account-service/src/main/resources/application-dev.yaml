@@ -1,12 +1,12 @@
 server:
-  port: 8081
+  port: 8082
 
 spring:
   application:
-    name: user-service
+    name: account-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/user_db
+    url: jdbc:postgresql://localhost:5432/account_db
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
@@ -26,5 +26,3 @@ spring:
 
 jwt:
   secret: ${JWT_SECRET:mysecretkey}
-  access-token-expiration-ms: 900000
-  refresh-token-expiration-ms: 604800000
