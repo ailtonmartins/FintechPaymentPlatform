@@ -39,14 +39,13 @@ Auth (JWT)
 User Service
 Account Service
 Transaction Service
-Payment Service
 -----------------------------
   v
 Kafka (eventos)
   v
-Consumers (processamento)
+Account Service Consumer
   v
-PostgreSQL / Redis
+PostgreSQL
 ```
 
 ## Estado Atual
@@ -55,7 +54,7 @@ Servicos implementados:
 
 - `api-gateway`
   - Porta publica `8080`
-  - Roteamento para `user-service` e `account-service`
+  - Roteamento para `user-service`, `account-service` e `transaction-service`
   - Validacao local de JWT antes de encaminhar rotas protegidas
   - Encaminhamento de headers internos `X-Authenticated-User-Id` e `X-Authenticated-User-Email`
   - Rotas publicas para login, cadastro, refresh token, health check e OpenAPI JSON dos servicos
@@ -78,13 +77,21 @@ Servicos implementados:
   - Validacao de saldo
   - Validacao de conta ativa
   - Validacao local de JWT emitido pelo `user-service`
+  - Consumer Kafka de solicitacao de transferencia
+  - Debito da conta origem e credito da conta destino
+  - Producer Kafka de resultado da transferencia
+
+- `transaction-service`
+  - Criacao de transferencia com status `PENDING`
+  - Consulta de transacao por id
+  - Producer Kafka de solicitacao de transferencia
+  - Consumer Kafka de resultado da transferencia
+  - Atualizacao da transacao para `COMPLETED` ou `FAILED`
 
 Ainda pendentes:
 
-- `transaction-service`
-- `payment-service`
-- Kafka producers/consumers
 - Idempotencia e resiliencia do fluxo financeiro
+- Retry e DLQ para consumidores Kafka
 
 ## Bancos De Dados
 
@@ -94,7 +101,6 @@ Cada microsservico deve ser dono exclusivo do seu banco. O projeto usa um contai
 user-service        -> user_db
 account-service     -> account_db
 transaction-service -> transaction_db
-payment-service     -> payment_db
 ```
 
 O script de inicializacao fica em:
@@ -114,7 +120,9 @@ FintechPaymentPlatform/
 |   `--- postgres/
 |       `--- init/
 |--- user-service/
-`--- account-service/
+|--- account-service/
+|--- transaction-service/
+`--- api-gateway/
 ```
 
 Cada servico segue uma Clean Architecture simples:
@@ -155,6 +163,7 @@ Swagger UI direta por servico, quando rodar os servicos fora do Compose expondo 
 ```text
 user-service:    http://localhost:8081/swagger-ui/index.html
 account-service: http://localhost:8082/swagger-ui/index.html
+transaction-service: http://localhost:8083/swagger-ui/index.html
 ```
 
 OpenAPI JSON:
@@ -163,10 +172,12 @@ OpenAPI JSON:
 via gateway:
 user-service:    http://localhost:8080/user-service/v3/api-docs
 account-service: http://localhost:8080/account-service/v3/api-docs
+transaction-service: http://localhost:8080/transaction-service/v3/api-docs
 
 direto no servico:
 user-service:    http://localhost:8081/v3/api-docs
 account-service: http://localhost:8082/v3/api-docs
+transaction-service: http://localhost:8083/v3/api-docs
 ```
 
 Principais endpoints atuais:
@@ -185,6 +196,9 @@ GET  /api/v1/accounts/me
 GET  /api/v1/accounts/{id}
 POST /api/v1/accounts/{id}/credit
 POST /api/v1/accounts/{id}/debit
+
+POST /api/v1/transactions/transfers
+GET  /api/v1/transactions/{id}
 ```
 
 ## Infraestrutura Local
@@ -194,8 +208,10 @@ O `docker-compose.yaml` sobe:
 - PostgreSQL 15
 - Zookeeper 7.6.1
 - Kafka 7.6.1
+- Kafka UI
 - `user-service`
 - `account-service`
+- `transaction-service`
 - `api-gateway`
 
 Comandos:
@@ -210,7 +226,13 @@ Endpoint publico principal:
 http://localhost:8080
 ```
 
-Os servicos internos nao publicam `8081` e `8082` no host quando executados via Docker Compose. Eles ficam acessiveis dentro da rede Docker e devem ser chamados pelo gateway.
+Kafka UI:
+
+```text
+http://localhost:8090
+```
+
+Os servicos internos nao publicam `8081`, `8082` e `8083` no host quando executados via Docker Compose. Eles ficam acessiveis dentro da rede Docker e devem ser chamados pelo gateway.
 
 Rodar os servicos:
 
@@ -221,6 +243,11 @@ cd user-service
 
 ```bash
 cd account-service
+./gradlew bootRun --args='--spring.profiles.active=dev'
+```
+
+```bash
+cd transaction-service
 ./gradlew bootRun --args='--spring.profiles.active=dev'
 ```
 
@@ -236,20 +263,38 @@ cd account-service
 ./gradlew test
 ```
 
-## Fluxo De Transferencia Planejado
+```bash
+cd transaction-service
+./gradlew test
+```
+
+## Fluxo De Transferencia Com Kafka
 
 ```text
-transaction-service publica TRANSFER_REQUESTED
-account-service consome o evento
-account-service realiza debito e credito
-account-service publica TRANSFER_COMPLETED
-transaction-service consome confirmacao
-transaction-service atualiza a transacao para COMPLETED ou FAILED
+1. Client chama POST /api/v1/transactions/transfers pelo API Gateway.
+2. transaction-service cria a transacao com status PENDING.
+3. transaction-service publica o evento transaction.transfer.requested.
+4. account-service consome transaction.transfer.requested.
+5. account-service valida contas, saldo e conta ativa.
+6. account-service debita a origem e credita o destino em transacao de banco.
+7. account-service publica:
+   - transaction.transfer.completed
+   - ou transaction.transfer.failed
+8. transaction-service consome o resultado.
+9. transaction-service atualiza a transacao para COMPLETED ou FAILED.
+```
+
+Topicos Kafka atuais:
+
+```text
+transaction.transfer.requested
+transaction.transfer.completed
+transaction.transfer.failed
 ```
 
 ## Proxima Etapa
 
-Implementar producers/consumers Kafka e iniciar o `transaction-service`, mantendo banco proprio, migrations com Flyway, endpoints documentados, idempotencia planejada e testes automatizados.
+Implementar idempotencia, retry e DLQ no fluxo financeiro. O ponto principal e evitar processamento duplicado da mesma `transactionId`, especialmente nos consumers Kafka do `account-service` e do `transaction-service`.
 
 ## Autor
 

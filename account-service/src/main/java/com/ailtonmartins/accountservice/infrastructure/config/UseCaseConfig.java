@@ -6,6 +6,7 @@ import com.ailtonmartins.accountservice.application.usecase.CreditAccountUseCase
 import com.ailtonmartins.accountservice.application.usecase.DebitAccountUseCase;
 import com.ailtonmartins.accountservice.application.usecase.FindAccountByIdUseCase;
 import com.ailtonmartins.accountservice.application.usecase.FindAccountByUserIdUseCase;
+import com.ailtonmartins.accountservice.application.usecase.ProcessTransferUseCase;
 import com.ailtonmartins.accountservice.domain.repository.AccountRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -39,5 +40,10 @@ public class UseCaseConfig {
     @Bean
     public DebitAccountUseCase debitAccountUseCase(AccountRepository accountRepository) {
         return new DebitAccountUseCase(accountRepository);
+    }
+
+    @Bean
+    public ProcessTransferUseCase processTransferUseCase(AccountRepository accountRepository) {
+        return new ProcessTransferUseCase(accountRepository);
     }
 }
