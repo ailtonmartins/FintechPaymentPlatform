@@ -42,6 +42,9 @@ jwt:
 
 app:
   kafka:
+    retry:
+      max-attempts: ${KAFKA_RETRY_MAX_ATTEMPTS:3}
+      interval-ms: ${KAFKA_RETRY_INTERVAL_MS:1000}
     topics:
       transfer-requested: ${TRANSACTION_TRANSFER_REQUESTED_TOPIC:transaction.transfer.requested}
       transfer-completed: ${TRANSACTION_TRANSFER_COMPLETED_TOPIC:transaction.transfer.completed}
