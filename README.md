@@ -1,161 +1,155 @@
-# 💳 Fintech Payment Platform (Java + Spring Boot)
+# Fintech Payment Platform (Java + Spring Boot)
 
-## 📌 Visão Geral
+## Visao Geral
 
-Este projeto simula uma plataforma de pagamentos de uma fintech, com foco em **microsserviços**, **segurança com JWT**, e **processamento assíncrono com Kafka**.
+Este projeto simula uma plataforma de pagamentos de uma fintech, com foco em microsservicos, seguranca com JWT, persistencia isolada por servico e processamento assincrono com Kafka.
 
-A aplicação permite:
+A aplicacao contempla:
 
-* Cadastro de usuários
-* Autenticação segura (JWT + Refresh Token)
-* Criação de contas digitais
-* Transferências entre contas
-* Processamento de pagamentos assíncronos
+- Cadastro e autenticacao de usuarios
+- JWT + Refresh Token
+- Criacao e consulta de contas digitais
+- Operacoes de saldo, credito e debito
+- Transferencias entre contas
+- Processamento de pagamentos assincronos
 
----
+## Objetivo
 
-## 🎯 Objetivo
+Demonstrar habilidades em:
 
-Demonstrar habilidades avançadas em:
+- Java 21 e Spring Boot
+- Arquitetura de microsservicos
+- Spring Security com JWT
+- Clean Architecture
+- Event-driven architecture com Kafka
+- PostgreSQL com Flyway
+- Testes automatizados
+- Docker e Docker Compose
 
-* Java + Spring Boot
-* Arquitetura de microsserviços
-* Segurança (JWT + Spring Security)
-* Event-driven architecture (Kafka)
-* Boas práticas (SOLID, Clean Architecture)
-
----
-
-## 🧠 Arquitetura
+## Arquitetura
 
 ```text
 Client
-  ↓
+  v
 API Gateway
-  ↓
+  v
 Auth (JWT)
-  ↓
+  v
 -----------------------------
 User Service
 Account Service
 Transaction Service
 Payment Service
 -----------------------------
-  ↓
+  v
 Kafka (eventos)
-  ↓
+  v
 Consumers (processamento)
-  ↓
+  v
 PostgreSQL / Redis
 ```
 
----
+## Estado Atual
 
+Servicos implementados:
 
-## 🔐 Autenticação e Segurança
+- `user-service`
+  - Cadastro de usuario
+  - Login
+  - Refresh token
+  - Roles `USER` e `ADMIN`
+  - Endpoints protegidos com JWT
+  - Consulta do usuario autenticado em `/api/v1/me`
+  - Consulta administrativa de usuarios em `/api/v1/users/**`
 
-O sistema utiliza autenticação baseada em **JWT (JSON Web Token)** com suporte a **Refresh Token**.
+- `account-service`
+  - Criacao de conta para usuario autenticado
+  - Consulta da propria conta
+  - Consulta de conta por id
+  - Credito e debito
+  - Validacao de saldo
+  - Validacao de conta ativa
+  - Validacao local de JWT emitido pelo `user-service`
 
-### 🔑 Fluxo de autenticação
+Ainda pendentes:
 
-1. Usuário realiza login
-2. Sistema gera:
+- `transaction-service`
+- `payment-service`
+- API Gateway
+- Kafka producers/consumers
+- Idempotencia e resiliencia do fluxo financeiro
 
-   * Access Token (JWT - curto prazo)
-   * Refresh Token (longo prazo)
-3. Requisições autenticadas via header:
+## Bancos De Dados
+
+Cada microsservico deve ser dono exclusivo do seu banco. O projeto usa um container PostgreSQL local com bancos separados:
+
+```text
+user-service        -> user_db
+account-service     -> account_db
+transaction-service -> transaction_db
+payment-service     -> payment_db
+```
+
+O script de inicializacao fica em:
+
+```text
+docker/postgres/init/01-create-service-databases.sql
+```
+
+Importante: scripts em `/docker-entrypoint-initdb.d` rodam automaticamente apenas na primeira criacao do volume do PostgreSQL. Se o container/volume ja existir, crie os bancos manualmente ou recrie o volume.
+
+## Estrutura Do Projeto
+
+```text
+FintechPaymentPlatform/
+|--- docker-compose.yaml
+|--- docker/
+|   `--- postgres/
+|       `--- init/
+|--- user-service/
+`--- account-service/
+```
+
+Cada servico segue uma Clean Architecture simples:
+
+```text
+domain          -> regras centrais, entidades, contratos e excecoes
+application     -> use cases, commands, results e portas tecnicas
+infrastructure  -> Spring Security, JWT, JPA, Flyway e configuracoes
+presentation    -> controllers, DTOs e handlers HTTP
+```
+
+## Autenticacao E Seguranca
+
+O `user-service` gera access tokens JWT e refresh tokens.
+
+Header esperado:
 
 ```http
 Authorization: Bearer <access_token>
 ```
 
----
+O `account-service` valida o JWT localmente usando o mesmo `jwt.secret`. Ele valida assinatura e expiracao do token, extrai o `sub` como `userId` e usa esse valor como usuario autenticado.
 
-### 🔁 Refresh Token
+O `account-service` nao acessa o banco do `user-service`. Isso preserva o isolamento entre microsservicos. A verificacao de usuario ativo deve evoluir depois via API Gateway, introspection ou eventos/cache local de usuarios.
 
-```http
-POST /auth/refresh
-```
+## Documentacao Da API
 
-Gera um novo access token sem necessidade de login.
-
----
-
-### 🔒 Segurança aplicada
-
-* Senhas criptografadas com BCrypt
-* Validação de JWT via filtro
-* Proteção de endpoints
-* Controle de roles (USER / ADMIN)
-
----
-
-## ⚙️ Tecnologias
-
-### Backend
-
-* Java 21
-* Spring Boot
-* Spring Security
-* Spring Data JPA
-* OpenAPI/Swagger
-
-### Arquitetura
-
-* Microsserviços
-* REST APIs
-* Event-driven
-
-### Mensageria
-
-* Apache Kafka
-
-### Banco
-
-* PostgreSQL
-* Redis (opcional)
-
-### Infra
-
-* Docker
-* Docker Compose
-
----
-
-## 📦 Estrutura do Projeto
-
-```bash
-fintech-platform/
-│
-├── docker-compose.yaml
-│
-├── user-service/
-├── account-service/
-├── transaction-service/
-└── payment-service/
-```
-
-Essa divisão segue uma Clean Architecture simples:
-
-* `domain`: regras centrais, entidades, contratos e exceções.
-* `application`: casos de uso específicos por operação, commands, results e portas técnicas.
-* `infrastructure`: detalhes técnicos como JWT, Spring Security, JPA e configurações.
-* `presentation`: controllers e DTOs da API.
-
----
-
-## 📚 Documentação da API
-
-O `user-service` usa OpenAPI/Swagger com `springdoc-openapi`.
-
-Com o serviço rodando localmente na porta `8081`, acesse:
+Swagger UI:
 
 ```text
-Swagger UI: http://localhost:8081/swagger-ui/index.html
-OpenAPI JSON: http://localhost:8081/v3/api-docs
+user-service:    http://localhost:8081/swagger-ui/index.html
+account-service: http://localhost:8082/swagger-ui/index.html
 ```
 
-Endpoints documentados atualmente:
+OpenAPI JSON:
+
+```text
+user-service:    http://localhost:8081/v3/api-docs
+account-service: http://localhost:8082/v3/api-docs
+```
+
+Principais endpoints atuais:
 
 ```text
 POST /api/v1/auth/register
@@ -165,90 +159,71 @@ POST /api/v1/auth/refresh-token
 GET  /api/v1/me
 GET  /api/v1/users/{id}
 GET  /api/v1/users?email=
+
+POST /api/v1/accounts
+GET  /api/v1/accounts/me
+GET  /api/v1/accounts/{id}
+POST /api/v1/accounts/{id}/credit
+POST /api/v1/accounts/{id}/debit
 ```
 
-As rotas de documentação ficam liberadas no Spring Security:
+## Infraestrutura Local
 
-```text
-/swagger-ui/**
-/swagger-ui.html
-/v3/api-docs/**
-```
+O `docker-compose.yaml` sobe:
 
----
+- PostgreSQL 15
+- Zookeeper
+- Kafka
 
-## 🔄 Fluxo de Transferência
-
-1. Cliente solicita transferência
-2. transaction-service valida saldo
-3. Evento `TRANSFER_REQUESTED` é publicado no Kafka
-4. account-service processa débito/crédito
-5. Evento `TRANSFER_COMPLETED` é emitido
-
----
-
-## 💥 Resiliência
-
-* Retry automático em falhas
-* Idempotência em transações
-* Consistência eventual
-
----
-
-## 🐳 Infraestrutura
-
-```yaml
-version: '3.8'
-
-services:
-
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: fintech
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
-
-  zookeeper:
-    image: confluentinc/cp-zookeeper:latest
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-
-  kafka:
-    image: confluentinc/cp-kafka:latest
-    depends_on:
-      - zookeeper
-    ports:
-      - "9092:9092"
-    environment:
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-```
-
----
-
-## 🚀 Como Executar
+Comandos:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-## 👨‍💻 Autor
+Rodar os servicos:
 
-**Ailton Martins**
-Backend Developer (Java | Spring Boot | Microsserviços)
+```bash
+cd user-service
+./gradlew bootRun --args='--spring.profiles.active=dev'
+```
 
-🔗 LinkedIn: https://www.linkedin.com/in/ailton-martins-1a4277136
-💻 GitHub: https://github.com/ailtonmartins
+```bash
+cd account-service
+./gradlew bootRun --args='--spring.profiles.active=dev'
+```
 
----
+Rodar testes:
 
-## ⭐ Objetivo do Projeto
+```bash
+cd user-service
+./gradlew test
+```
 
-Este projeto foi criado para demonstrar habilidades em:
+```bash
+cd account-service
+./gradlew test
+```
 
-* Sistemas distribuídos
-* Segurança moderna (JWT)
-* Arquitetura escalável
+## Fluxo De Transferencia Planejado
+
+```text
+transaction-service publica TRANSFER_REQUESTED
+account-service consome o evento
+account-service realiza debito e credito
+account-service publica TRANSFER_COMPLETED
+transaction-service consome confirmacao
+transaction-service atualiza a transacao para COMPLETED ou FAILED
+```
+
+## Proxima Etapa
+
+Implementar Kafka e iniciar o `transaction-service`, mantendo banco proprio, migrations com Flyway, endpoints documentados e testes automatizados.
+
+## Autor
+
+Ailton Martins  
+Backend Developer (Java | Spring Boot | Microsservicos)
+
+LinkedIn: https://www.linkedin.com/in/ailton-martins-1a4277136  
+GitHub: https://github.com/ailtonmartins
