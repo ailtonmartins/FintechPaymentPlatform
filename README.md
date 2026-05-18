@@ -80,6 +80,8 @@ Servicos implementados:
   - Consumer Kafka de solicitacao de transferencia
   - Debito da conta origem e credito da conta destino
   - Producer Kafka de resultado da transferencia
+  - Idempotencia por `transactionId` no processamento financeiro
+  - Retry e DLQ no consumer Kafka
 
 - `transaction-service`
   - Criacao de transferencia com status `PENDING`
@@ -87,11 +89,13 @@ Servicos implementados:
   - Producer Kafka de solicitacao de transferencia
   - Consumer Kafka de resultado da transferencia
   - Atualizacao da transacao para `COMPLETED` ou `FAILED`
+  - Consumo idempotente de resultados duplicados
+  - Retry e DLQ nos consumers Kafka
 
 Ainda pendentes:
 
-- Idempotencia e resiliencia do fluxo financeiro
-- Retry e DLQ para consumidores Kafka
+- Observabilidade do fluxo financeiro
+- Padrao Outbox para fortalecer publicacao atomica de eventos
 
 ## Bancos De Dados
 
@@ -277,11 +281,12 @@ cd transaction-service
 4. account-service consome transaction.transfer.requested.
 5. account-service valida contas, saldo e conta ativa.
 6. account-service debita a origem e credita o destino em transacao de banco.
-7. account-service publica:
+7. account-service registra a transactionId em processed_transfer_events.
+8. account-service publica:
    - transaction.transfer.completed
    - ou transaction.transfer.failed
-8. transaction-service consome o resultado.
-9. transaction-service atualiza a transacao para COMPLETED ou FAILED.
+9. transaction-service consome o resultado.
+10. transaction-service atualiza a transacao para COMPLETED ou FAILED.
 ```
 
 Topicos Kafka atuais:
@@ -292,9 +297,59 @@ transaction.transfer.completed
 transaction.transfer.failed
 ```
 
+Topicos DLQ atuais:
+
+```text
+transaction.transfer.requested.dlq
+transaction.transfer.completed.dlq
+transaction.transfer.failed.dlq
+```
+
+## Idempotencia E Resiliencia
+
+O fluxo financeiro foi ajustado para tolerar entregas duplicadas do Kafka e falhas temporarias.
+
+No `account-service`, a idempotencia usa a tabela `processed_transfer_events`. A chave e `transactionId`. Antes de debitar e creditar, o servico verifica se aquela transferencia ja foi processada:
+
+```text
+transactionId ja existe:
+  nao movimenta saldo novamente
+  republica o resultado conhecido
+
+transactionId nao existe:
+  processa debito/credito
+  registra COMPLETED ou FAILED
+  publica o resultado
+```
+
+Falhas de regra de negocio viram resultado financeiro `FAILED`, por exemplo:
+
+```text
+Conta nao encontrada
+Conta inativa
+Saldo insuficiente
+```
+
+Falhas tecnicas entram no mecanismo de resiliencia Kafka:
+
+```text
+erro tecnico no consumer
+  retry configurado
+  se continuar falhando, envia para <topico>.dlq
+```
+
+Configuracoes atuais:
+
+```text
+KAFKA_RETRY_MAX_ATTEMPTS=3
+KAFKA_RETRY_INTERVAL_MS=1000
+```
+
+No `transaction-service`, eventos duplicados de resultado sao tratados de forma idempotente. Se a transacao ja estiver `COMPLETED` ou `FAILED`, o evento duplicado nao altera novamente o estado.
+
 ## Proxima Etapa
 
-Implementar idempotencia, retry e DLQ no fluxo financeiro. O ponto principal e evitar processamento duplicado da mesma `transactionId`, especialmente nos consumers Kafka do `account-service` e do `transaction-service`.
+Evoluir para o padrao Outbox, para garantir atomicidade forte entre alteracao de banco e publicacao de evento Kafka. Depois disso, adicionar metricas, tracing e endpoints operacionais para acompanhar transferencias pendentes, falhas e mensagens em DLQ.
 
 ## Autor
 

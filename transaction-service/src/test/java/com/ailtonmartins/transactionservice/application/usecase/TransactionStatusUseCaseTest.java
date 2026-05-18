@@ -74,6 +74,33 @@ class TransactionStatusUseCaseTest {
         verify(transactionRepository, never()).save(any());
     }
 
+    @Test
+    void deveIgnorarConclusaoDuplicadaQuandoTransacaoJaEstiverFinalizada() {
+        Transaction transaction = transaction();
+        transaction.complete();
+        when(transactionRepository.findById(transaction.getId())).thenReturn(Optional.of(transaction));
+
+        TransactionResult result = completeTransactionUseCase.execute(transaction.getId());
+
+        assertThat(result.status()).isEqualTo(TransactionStatus.COMPLETED);
+        verify(transactionRepository, never()).save(any());
+    }
+
+    @Test
+    void deveIgnorarFalhaDuplicadaQuandoTransacaoJaEstiverFinalizada() {
+        Transaction transaction = transaction();
+        transaction.fail("Saldo insuficiente");
+        when(transactionRepository.findById(transaction.getId())).thenReturn(Optional.of(transaction));
+
+        TransactionResult result = failTransactionUseCase.execute(
+                new FailTransactionCommand(transaction.getId(), "Saldo insuficiente")
+        );
+
+        assertThat(result.status()).isEqualTo(TransactionStatus.FAILED);
+        assertThat(result.failureReason()).isEqualTo("Saldo insuficiente");
+        verify(transactionRepository, never()).save(any());
+    }
+
     private static Transaction transaction() {
         return new Transaction(
                 UUID.randomUUID(),
