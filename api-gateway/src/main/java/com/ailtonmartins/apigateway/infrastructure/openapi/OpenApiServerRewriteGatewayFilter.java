@@ -28,7 +28,8 @@ public class OpenApiServerRewriteGatewayFilter implements GlobalFilter, Ordered 
 
     private static final List<String> OPENAPI_PATHS = List.of(
             "/user-service/v3/api-docs",
-            "/account-service/v3/api-docs"
+            "/account-service/v3/api-docs",
+            "/transaction-service/v3/api-docs"
     );
 
     private final ObjectMapper objectMapper;
