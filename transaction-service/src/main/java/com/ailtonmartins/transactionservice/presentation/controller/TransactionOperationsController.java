@@ -1,12 +1,15 @@
 package com.ailtonmartins.transactionservice.presentation.controller;
 
 import com.ailtonmartins.transactionservice.domain.model.TransactionStatus;
+import com.ailtonmartins.transactionservice.infrastructure.config.OpenApiConfig;
 import com.ailtonmartins.transactionservice.infrastructure.operations.KafkaDlqMonitor;
 import com.ailtonmartins.transactionservice.infrastructure.outbox.JpaOutboxEventRepository;
 import com.ailtonmartins.transactionservice.infrastructure.persistence.repository.JpaTransactionRepository;
 import com.ailtonmartins.transactionservice.presentation.dto.response.OperationSummaryResponse;
 import com.ailtonmartins.transactionservice.presentation.dto.response.OutboxEventResponse;
 import com.ailtonmartins.transactionservice.presentation.dto.response.PendingTransactionResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,6 +20,8 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/operations/transactions")
+@Tag(name = "Operacional - Transacoes", description = "Endpoints operacionais do fluxo financeiro")
+@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
 public class TransactionOperationsController {
 
     private final JpaTransactionRepository transactionRepository;

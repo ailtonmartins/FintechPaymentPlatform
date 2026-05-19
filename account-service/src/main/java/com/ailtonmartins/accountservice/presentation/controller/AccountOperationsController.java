@@ -1,10 +1,13 @@
 package com.ailtonmartins.accountservice.presentation.controller;
 
+import com.ailtonmartins.accountservice.infrastructure.config.OpenApiConfig;
 import com.ailtonmartins.accountservice.infrastructure.operations.KafkaDlqMonitor;
 import com.ailtonmartins.accountservice.infrastructure.outbox.JpaOutboxEventRepository;
 import com.ailtonmartins.accountservice.infrastructure.persistence.repository.JpaProcessedTransferEventRepository;
 import com.ailtonmartins.accountservice.presentation.dto.response.AccountOperationSummaryResponse;
 import com.ailtonmartins.accountservice.presentation.dto.response.OutboxEventResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,6 +18,8 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/operations/accounts")
+@Tag(name = "Operacional - Contas", description = "Endpoints operacionais do processamento financeiro")
+@SecurityRequirement(name = OpenApiConfig.BEARER_AUTH)
 public class AccountOperationsController {
 
     private final JpaProcessedTransferEventRepository processedTransferEventRepository;
