@@ -59,6 +59,7 @@ Servicos implementados:
   - Encaminhamento de headers internos `X-Authenticated-User-Id` e `X-Authenticated-User-Email`
   - Rotas publicas para login, cadastro, refresh token, health check e OpenAPI JSON dos servicos
   - Swagger UI centralizada dos servicos
+  - Propagacao de `X-Correlation-Id`
 
 - `user-service`
   - Cadastro de usuario
@@ -83,6 +84,8 @@ Servicos implementados:
   - Idempotencia por `transactionId` no processamento financeiro
   - Retry e DLQ no consumer Kafka
   - Outbox para publicacao confiavel de `completed/failed`
+  - Endpoints operacionais para resumo, Outbox FAILED e DLQ
+  - Metricas Micrometer do fluxo financeiro
 
 - `transaction-service`
   - Criacao de transferencia com status `PENDING`
@@ -93,6 +96,8 @@ Servicos implementados:
   - Consumo idempotente de resultados duplicados
   - Retry e DLQ nos consumers Kafka
   - Outbox para publicacao confiavel de `requested`
+  - Endpoints operacionais para transacoes pendentes, Outbox FAILED e DLQ
+  - Metricas Micrometer do fluxo financeiro
 
 Ainda pendentes:
 
@@ -205,6 +210,13 @@ POST /api/v1/accounts/{id}/debit
 
 POST /api/v1/transactions/transfers
 GET  /api/v1/transactions/{id}
+
+GET  /api/v1/operations/transactions/summary
+GET  /api/v1/operations/transactions/pending
+GET  /api/v1/operations/transactions/outbox/failed
+
+GET  /api/v1/operations/accounts/summary
+GET  /api/v1/operations/accounts/outbox/failed
 ```
 
 ## Infraestrutura Local
@@ -236,6 +248,22 @@ Kafka UI:
 
 ```text
 http://localhost:8090
+```
+
+Metricas via gateway:
+
+```text
+GET /transaction-service/actuator/metrics
+GET /transaction-service/actuator/metrics/financial.transactions.pending
+GET /transaction-service/actuator/metrics/financial.transactions.failed
+GET /transaction-service/actuator/metrics/financial.outbox.pending
+GET /transaction-service/actuator/metrics/financial.outbox.failed
+
+GET /account-service/actuator/metrics
+GET /account-service/actuator/metrics/financial.transfers.completed
+GET /account-service/actuator/metrics/financial.transfers.failed
+GET /account-service/actuator/metrics/financial.outbox.pending
+GET /account-service/actuator/metrics/financial.outbox.failed
 ```
 
 Os servicos internos nao publicam `8081`, `8082` e `8083` no host quando executados via Docker Compose. Eles ficam acessiveis dentro da rede Docker e devem ser chamados pelo gateway.
@@ -388,9 +416,36 @@ OUTBOX_MAX_ATTEMPTS=5
 
 Esse desenho evita perder eventos quando o banco confirma a operacao, mas o Kafka fica temporariamente indisponivel. O evento permanece salvo como `PENDING` e sera publicado quando o publicador conseguir enviar.
 
-## Proxima Etapa
+## Observabilidade Operacional
 
-Adicionar metricas, tracing e endpoints operacionais para acompanhar transferencias pendentes, eventos Outbox `FAILED` e mensagens em DLQ.
+O gateway propaga o header `X-Correlation-Id`. Se o cliente nao enviar esse header, o gateway gera um UUID e repassa para os servicos internos. `account-service` e `transaction-service` incluem o valor no MDC dos logs.
+
+Endpoints operacionais:
+
+```text
+GET /api/v1/operations/transactions/summary
+  resumo de transacoes pendentes/falhadas, Outbox pendente/falhada e DLQs de resultado
+
+GET /api/v1/operations/transactions/pending
+  lista as 20 transacoes PENDING mais antigas
+
+GET /api/v1/operations/transactions/outbox/failed
+  lista os 20 eventos Outbox FAILED mais antigos do transaction-service
+
+GET /api/v1/operations/accounts/summary
+  resumo de transferencias processadas/falhadas, Outbox pendente/falhada e DLQ de requested
+
+GET /api/v1/operations/accounts/outbox/failed
+  lista os 20 eventos Outbox FAILED mais antigos do account-service
+```
+
+As mensagens em DLQ sao contadas por diferenca entre offsets iniciais e finais dos topicos:
+
+```text
+transaction.transfer.requested.dlq
+transaction.transfer.completed.dlq
+transaction.transfer.failed.dlq
+```
 
 ## Autor
 
