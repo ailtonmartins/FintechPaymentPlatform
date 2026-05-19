@@ -50,3 +50,13 @@ app:
   outbox:
     publish-interval-ms: ${OUTBOX_PUBLISH_INTERVAL_MS:1000}
     max-attempts: ${OUTBOX_MAX_ATTEMPTS:5}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+logging:
+  pattern:
+    level: "%5p [correlationId:%X{correlationId:-}]"

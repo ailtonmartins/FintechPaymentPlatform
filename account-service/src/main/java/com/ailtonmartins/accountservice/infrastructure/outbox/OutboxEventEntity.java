@@ -77,6 +77,22 @@ public class OutboxEventEntity {
         return payload;
     }
 
+    public String getEventType() {
+        return eventType;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public String getLastError() {
+        return lastError;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
     public int getAttempts() {
         return attempts;
     }
