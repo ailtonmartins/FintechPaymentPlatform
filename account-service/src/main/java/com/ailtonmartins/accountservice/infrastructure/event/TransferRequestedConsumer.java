@@ -1,7 +1,6 @@
 package com.ailtonmartins.accountservice.infrastructure.event;
 
 import com.ailtonmartins.accountservice.application.command.ProcessTransferCommand;
-import com.ailtonmartins.accountservice.application.port.TransferResultPublisher;
 import com.ailtonmartins.accountservice.application.result.ProcessTransferResult;
 import com.ailtonmartins.accountservice.application.usecase.ProcessTransferUseCase;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -18,16 +17,13 @@ public class TransferRequestedConsumer {
 
     private final ObjectMapper objectMapper;
     private final ProcessTransferUseCase processTransferUseCase;
-    private final TransferResultPublisher transferResultPublisher;
 
     public TransferRequestedConsumer(
             ObjectMapper objectMapper,
-            ProcessTransferUseCase processTransferUseCase,
-            TransferResultPublisher transferResultPublisher
+            ProcessTransferUseCase processTransferUseCase
     ) {
         this.objectMapper = objectMapper;
         this.processTransferUseCase = processTransferUseCase;
-        this.transferResultPublisher = transferResultPublisher;
     }
 
     @KafkaListener(topics = "${app.kafka.topics.transfer-requested}")
@@ -45,11 +41,5 @@ public class TransferRequestedConsumer {
             LOGGER.info("Transferencia ja processada, republicando resultado transactionId={}", command.transactionId());
         }
 
-        if (result.completed()) {
-            transferResultPublisher.publishCompleted(command);
-            return;
-        }
-
-        transferResultPublisher.publishFailed(command, result.failureReason());
     }
 }

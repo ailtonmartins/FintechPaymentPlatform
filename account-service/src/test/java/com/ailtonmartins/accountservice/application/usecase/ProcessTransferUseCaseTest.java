@@ -2,6 +2,7 @@ package com.ailtonmartins.accountservice.application.usecase;
 
 import com.ailtonmartins.accountservice.application.command.ProcessTransferCommand;
 import com.ailtonmartins.accountservice.application.port.ProcessedTransferEventRepository;
+import com.ailtonmartins.accountservice.application.port.TransferResultPublisher;
 import com.ailtonmartins.accountservice.application.result.ProcessTransferResult;
 import com.ailtonmartins.accountservice.domain.model.Account;
 import com.ailtonmartins.accountservice.domain.repository.AccountRepository;
@@ -30,6 +31,9 @@ class ProcessTransferUseCaseTest {
     @Mock
     private ProcessedTransferEventRepository processedTransferEventRepository;
 
+    @Mock
+    private TransferResultPublisher transferResultPublisher;
+
     @InjectMocks
     private ProcessTransferUseCase processTransferUseCase;
 
@@ -56,6 +60,7 @@ class ProcessTransferUseCaseTest {
         verify(accountRepository).save(sourceAccount);
         verify(accountRepository).save(destinationAccount);
         verify(processedTransferEventRepository).saveCompleted(command);
+        verify(transferResultPublisher).publishCompleted(command);
     }
 
     @Test
@@ -70,6 +75,7 @@ class ProcessTransferUseCaseTest {
         assertThat(result.alreadyProcessed()).isTrue();
         verify(accountRepository, never()).findById(command.sourceAccountId());
         verify(accountRepository, never()).save(org.mockito.Mockito.any());
+        verify(transferResultPublisher, never()).publishCompleted(command);
     }
 
     @Test
@@ -95,6 +101,7 @@ class ProcessTransferUseCaseTest {
         assertThat(destinationAccount.getBalance()).isEqualByComparingTo("20.00");
         verify(accountRepository, never()).save(org.mockito.Mockito.any());
         verify(processedTransferEventRepository).saveFailed(command, "Saldo insuficiente");
+        verify(transferResultPublisher).publishFailed(command, "Saldo insuficiente");
     }
 
     private static ProcessTransferCommand command() {
