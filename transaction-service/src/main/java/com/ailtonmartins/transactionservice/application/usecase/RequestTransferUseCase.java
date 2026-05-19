@@ -5,6 +5,7 @@ import com.ailtonmartins.transactionservice.application.port.TransactionEventPub
 import com.ailtonmartins.transactionservice.application.result.TransactionResult;
 import com.ailtonmartins.transactionservice.domain.model.Transaction;
 import com.ailtonmartins.transactionservice.domain.repository.TransactionRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 public class RequestTransferUseCase {
 
@@ -19,6 +20,7 @@ public class RequestTransferUseCase {
         this.transactionEventPublisher = transactionEventPublisher;
     }
 
+    @Transactional
     public TransactionResult execute(RequestTransferCommand command) {
         Transaction transaction = new Transaction(
                 command.requesterUserId(),
