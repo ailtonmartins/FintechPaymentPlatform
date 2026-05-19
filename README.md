@@ -12,6 +12,7 @@ A aplicacao contempla:
 - Operacoes de saldo, credito e debito
 - Transferencias entre contas
 - Processamento de pagamentos assincronos
+- Frontend web simples para operar os fluxos pelo API Gateway
 
 ## Objetivo
 
@@ -25,11 +26,12 @@ Demonstrar habilidades em:
 - PostgreSQL com Flyway
 - Testes automatizados
 - Docker e Docker Compose
+- React com TypeScript
 
 ## Arquitetura
 
 ```text
-Client
+Client / Frontend React
   v
 API Gateway
   v
@@ -51,6 +53,15 @@ PostgreSQL
 ## Estado Atual
 
 Servicos implementados:
+
+- `frontend`
+  - React com TypeScript e Vite
+  - Interface operacional na porta `3000`
+  - Login, cadastro e armazenamento de JWT + refresh token
+  - Refresh token automatico em respostas `401`
+  - Telas para usuario, contas, saldo, transferencias e operacao
+  - Consumo de todos os fluxos pelo `api-gateway`
+  - Nginx para servir o build estatico e fazer proxy para o gateway
 
 - `api-gateway`
   - Porta publica `8080`
@@ -133,7 +144,8 @@ FintechPaymentPlatform/
 |--- user-service/
 |--- account-service/
 |--- transaction-service/
-`--- api-gateway/
+|--- api-gateway/
+`--- frontend/
 ```
 
 Cada servico segue uma Clean Architecture simples:
@@ -219,10 +231,66 @@ GET  /api/v1/operations/accounts/summary
 GET  /api/v1/operations/accounts/outbox/failed
 ```
 
+## Frontend
+
+O projeto possui um frontend simples em React com TypeScript, localizado em:
+
+```text
+frontend/
+```
+
+A interface roda em:
+
+```text
+http://localhost:3000
+```
+
+Funcionalidades disponiveis:
+
+- Cadastro de usuario.
+- Login com JWT e refresh token.
+- Logout.
+- Consulta do usuario autenticado em `/api/v1/me`.
+- Consulta administrativa de usuarios por id e e-mail.
+- Criacao e consulta de contas.
+- Operacoes de credito e debito.
+- Criacao e consulta de transferencias.
+- Dashboard com dados do usuario, conta e resumo financeiro.
+- Tela operacional com summaries, transacoes pendentes, Outbox FAILED, DLQ, metricas, health check e OpenAPI dos servicos.
+
+Stack do frontend:
+
+```text
+React
+TypeScript
+Vite
+React Router
+Axios
+TanStack Query
+Lucide React
+Nginx
+Docker
+```
+
+O frontend nao chama diretamente `user-service`, `account-service` ou `transaction-service`. Todas as chamadas passam pelo `api-gateway`.
+
+Quando executado via Docker Compose, o Nginx do frontend faz proxy para o gateway nas rotas:
+
+```text
+/api/**
+/actuator/**
+/user-service/**
+/account-service/**
+/transaction-service/**
+```
+
+Isso permite acessar a interface em `http://localhost:3000` sem depender de CORS no gateway.
+
 ## Infraestrutura Local
 
 O `docker-compose.yaml` sobe:
 
+- `frontend`
 - PostgreSQL 15
 - Zookeeper 7.6.1
 - Kafka 7.6.1
@@ -242,6 +310,12 @@ Endpoint publico principal:
 
 ```text
 http://localhost:8080
+```
+
+Frontend:
+
+```text
+http://localhost:3000
 ```
 
 Kafka UI:
@@ -271,6 +345,12 @@ Os servicos internos nao publicam `8081`, `8082` e `8083` no host quando executa
 Rodar os servicos:
 
 ```bash
+cd frontend
+npm install
+npm run dev
+```
+
+```bash
 cd user-service
 ./gradlew bootRun --args='--spring.profiles.active=dev'
 ```
@@ -283,6 +363,13 @@ cd account-service
 ```bash
 cd transaction-service
 ./gradlew bootRun --args='--spring.profiles.active=dev'
+```
+
+Build local do frontend:
+
+```bash
+cd frontend
+npm run build
 ```
 
 Rodar testes:

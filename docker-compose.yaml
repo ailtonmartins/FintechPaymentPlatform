@@ -125,3 +125,14 @@ services:
       TRANSACTION_SERVICE_URL: http://transaction-service:8083
     ports:
       - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ""
+    container_name: fintech-frontend
+    depends_on:
+      - api-gateway
+    ports:
+      - "3000:80"
