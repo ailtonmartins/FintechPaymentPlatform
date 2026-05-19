@@ -82,6 +82,7 @@ Servicos implementados:
   - Producer Kafka de resultado da transferencia
   - Idempotencia por `transactionId` no processamento financeiro
   - Retry e DLQ no consumer Kafka
+  - Outbox para publicacao confiavel de `completed/failed`
 
 - `transaction-service`
   - Criacao de transferencia com status `PENDING`
@@ -91,11 +92,12 @@ Servicos implementados:
   - Atualizacao da transacao para `COMPLETED` ou `FAILED`
   - Consumo idempotente de resultados duplicados
   - Retry e DLQ nos consumers Kafka
+  - Outbox para publicacao confiavel de `requested`
 
 Ainda pendentes:
 
 - Observabilidade do fluxo financeiro
-- Padrao Outbox para fortalecer publicacao atomica de eventos
+- Reprocessamento operacional de eventos `FAILED` na Outbox
 
 ## Bancos De Dados
 
@@ -277,16 +279,17 @@ cd transaction-service
 ```text
 1. Client chama POST /api/v1/transactions/transfers pelo API Gateway.
 2. transaction-service cria a transacao com status PENDING.
-3. transaction-service publica o evento transaction.transfer.requested.
-4. account-service consome transaction.transfer.requested.
-5. account-service valida contas, saldo e conta ativa.
-6. account-service debita a origem e credita o destino em transacao de banco.
-7. account-service registra a transactionId em processed_transfer_events.
-8. account-service publica:
+3. transaction-service grava o evento transaction.transfer.requested na tabela outbox_events.
+4. Outbox publisher do transaction-service publica o evento no Kafka.
+5. account-service consome transaction.transfer.requested.
+6. account-service valida contas, saldo e conta ativa.
+7. account-service debita a origem, credita o destino e registra a transactionId em processed_transfer_events.
+8. account-service grava o resultado na tabela outbox_events.
+9. Outbox publisher do account-service publica:
    - transaction.transfer.completed
    - ou transaction.transfer.failed
-9. transaction-service consome o resultado.
-10. transaction-service atualiza a transacao para COMPLETED ou FAILED.
+10. transaction-service consome o resultado.
+11. transaction-service atualiza a transacao para COMPLETED ou FAILED.
 ```
 
 Topicos Kafka atuais:
@@ -347,9 +350,47 @@ KAFKA_RETRY_INTERVAL_MS=1000
 
 No `transaction-service`, eventos duplicados de resultado sao tratados de forma idempotente. Se a transacao ja estiver `COMPLETED` ou `FAILED`, o evento duplicado nao altera novamente o estado.
 
+## Padrao Outbox
+
+Os servicos que alteram banco e precisam publicar eventos Kafka usam o padrao Outbox.
+
+No `transaction-service`, a criacao da transferencia e a gravacao do evento `transaction.transfer.requested` acontecem na mesma transacao de banco:
+
+```text
+transactions
+outbox_events
+```
+
+No `account-service`, a movimentacao financeira, o registro de idempotencia e a gravacao do resultado tambem acontecem na mesma transacao de banco:
+
+```text
+accounts
+processed_transfer_events
+outbox_events
+```
+
+Um publicador agendado le eventos pendentes da `outbox_events`, publica no Kafka e marca como `PUBLISHED`.
+
+Estados da Outbox:
+
+```text
+PENDING
+PUBLISHED
+FAILED
+```
+
+Configuracoes atuais:
+
+```text
+OUTBOX_PUBLISH_INTERVAL_MS=1000
+OUTBOX_MAX_ATTEMPTS=5
+```
+
+Esse desenho evita perder eventos quando o banco confirma a operacao, mas o Kafka fica temporariamente indisponivel. O evento permanece salvo como `PENDING` e sera publicado quando o publicador conseguir enviar.
+
 ## Proxima Etapa
 
-Evoluir para o padrao Outbox, para garantir atomicidade forte entre alteracao de banco e publicacao de evento Kafka. Depois disso, adicionar metricas, tracing e endpoints operacionais para acompanhar transferencias pendentes, falhas e mensagens em DLQ.
+Adicionar metricas, tracing e endpoints operacionais para acompanhar transferencias pendentes, eventos Outbox `FAILED` e mensagens em DLQ.
 
 ## Autor
 
