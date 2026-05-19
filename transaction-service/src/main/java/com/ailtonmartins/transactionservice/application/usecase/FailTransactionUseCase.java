@@ -18,6 +18,10 @@ public class FailTransactionUseCase {
         Transaction transaction = transactionRepository.findById(command.transactionId())
                 .orElseThrow(() -> new TransactionNotFoundException(command.transactionId()));
 
+        if (transaction.isFinished()) {
+            return TransactionResult.from(transaction);
+        }
+
         transaction.fail(command.failureReason());
 
         return TransactionResult.from(transactionRepository.save(transaction));

@@ -59,6 +59,7 @@ Servicos implementados:
   - Encaminhamento de headers internos `X-Authenticated-User-Id` e `X-Authenticated-User-Email`
   - Rotas publicas para login, cadastro, refresh token, health check e OpenAPI JSON dos servicos
   - Swagger UI centralizada dos servicos
+  - Propagacao de `X-Correlation-Id`
 
 - `user-service`
   - Cadastro de usuario
@@ -80,6 +81,11 @@ Servicos implementados:
   - Consumer Kafka de solicitacao de transferencia
   - Debito da conta origem e credito da conta destino
   - Producer Kafka de resultado da transferencia
+  - Idempotencia por `transactionId` no processamento financeiro
+  - Retry e DLQ no consumer Kafka
+  - Outbox para publicacao confiavel de `completed/failed`
+  - Endpoints operacionais para resumo, Outbox FAILED e DLQ
+  - Metricas Micrometer do fluxo financeiro
 
 - `transaction-service`
   - Criacao de transferencia com status `PENDING`
@@ -87,11 +93,16 @@ Servicos implementados:
   - Producer Kafka de solicitacao de transferencia
   - Consumer Kafka de resultado da transferencia
   - Atualizacao da transacao para `COMPLETED` ou `FAILED`
+  - Consumo idempotente de resultados duplicados
+  - Retry e DLQ nos consumers Kafka
+  - Outbox para publicacao confiavel de `requested`
+  - Endpoints operacionais para transacoes pendentes, Outbox FAILED e DLQ
+  - Metricas Micrometer do fluxo financeiro
 
 Ainda pendentes:
 
-- Idempotencia e resiliencia do fluxo financeiro
-- Retry e DLQ para consumidores Kafka
+- Observabilidade do fluxo financeiro
+- Reprocessamento operacional de eventos `FAILED` na Outbox
 
 ## Bancos De Dados
 
@@ -199,6 +210,13 @@ POST /api/v1/accounts/{id}/debit
 
 POST /api/v1/transactions/transfers
 GET  /api/v1/transactions/{id}
+
+GET  /api/v1/operations/transactions/summary
+GET  /api/v1/operations/transactions/pending
+GET  /api/v1/operations/transactions/outbox/failed
+
+GET  /api/v1/operations/accounts/summary
+GET  /api/v1/operations/accounts/outbox/failed
 ```
 
 ## Infraestrutura Local
@@ -230,6 +248,22 @@ Kafka UI:
 
 ```text
 http://localhost:8090
+```
+
+Metricas via gateway:
+
+```text
+GET /transaction-service/actuator/metrics
+GET /transaction-service/actuator/metrics/financial.transactions.pending
+GET /transaction-service/actuator/metrics/financial.transactions.failed
+GET /transaction-service/actuator/metrics/financial.outbox.pending
+GET /transaction-service/actuator/metrics/financial.outbox.failed
+
+GET /account-service/actuator/metrics
+GET /account-service/actuator/metrics/financial.transfers.completed
+GET /account-service/actuator/metrics/financial.transfers.failed
+GET /account-service/actuator/metrics/financial.outbox.pending
+GET /account-service/actuator/metrics/financial.outbox.failed
 ```
 
 Os servicos internos nao publicam `8081`, `8082` e `8083` no host quando executados via Docker Compose. Eles ficam acessiveis dentro da rede Docker e devem ser chamados pelo gateway.
@@ -273,15 +307,17 @@ cd transaction-service
 ```text
 1. Client chama POST /api/v1/transactions/transfers pelo API Gateway.
 2. transaction-service cria a transacao com status PENDING.
-3. transaction-service publica o evento transaction.transfer.requested.
-4. account-service consome transaction.transfer.requested.
-5. account-service valida contas, saldo e conta ativa.
-6. account-service debita a origem e credita o destino em transacao de banco.
-7. account-service publica:
+3. transaction-service grava o evento transaction.transfer.requested na tabela outbox_events.
+4. Outbox publisher do transaction-service publica o evento no Kafka.
+5. account-service consome transaction.transfer.requested.
+6. account-service valida contas, saldo e conta ativa.
+7. account-service debita a origem, credita o destino e registra a transactionId em processed_transfer_events.
+8. account-service grava o resultado na tabela outbox_events.
+9. Outbox publisher do account-service publica:
    - transaction.transfer.completed
    - ou transaction.transfer.failed
-8. transaction-service consome o resultado.
-9. transaction-service atualiza a transacao para COMPLETED ou FAILED.
+10. transaction-service consome o resultado.
+11. transaction-service atualiza a transacao para COMPLETED ou FAILED.
 ```
 
 Topicos Kafka atuais:
@@ -292,9 +328,124 @@ transaction.transfer.completed
 transaction.transfer.failed
 ```
 
-## Proxima Etapa
+Topicos DLQ atuais:
 
-Implementar idempotencia, retry e DLQ no fluxo financeiro. O ponto principal e evitar processamento duplicado da mesma `transactionId`, especialmente nos consumers Kafka do `account-service` e do `transaction-service`.
+```text
+transaction.transfer.requested.dlq
+transaction.transfer.completed.dlq
+transaction.transfer.failed.dlq
+```
+
+## Idempotencia E Resiliencia
+
+O fluxo financeiro foi ajustado para tolerar entregas duplicadas do Kafka e falhas temporarias.
+
+No `account-service`, a idempotencia usa a tabela `processed_transfer_events`. A chave e `transactionId`. Antes de debitar e creditar, o servico verifica se aquela transferencia ja foi processada:
+
+```text
+transactionId ja existe:
+  nao movimenta saldo novamente
+  republica o resultado conhecido
+
+transactionId nao existe:
+  processa debito/credito
+  registra COMPLETED ou FAILED
+  publica o resultado
+```
+
+Falhas de regra de negocio viram resultado financeiro `FAILED`, por exemplo:
+
+```text
+Conta nao encontrada
+Conta inativa
+Saldo insuficiente
+```
+
+Falhas tecnicas entram no mecanismo de resiliencia Kafka:
+
+```text
+erro tecnico no consumer
+  retry configurado
+  se continuar falhando, envia para <topico>.dlq
+```
+
+Configuracoes atuais:
+
+```text
+KAFKA_RETRY_MAX_ATTEMPTS=3
+KAFKA_RETRY_INTERVAL_MS=1000
+```
+
+No `transaction-service`, eventos duplicados de resultado sao tratados de forma idempotente. Se a transacao ja estiver `COMPLETED` ou `FAILED`, o evento duplicado nao altera novamente o estado.
+
+## Padrao Outbox
+
+Os servicos que alteram banco e precisam publicar eventos Kafka usam o padrao Outbox.
+
+No `transaction-service`, a criacao da transferencia e a gravacao do evento `transaction.transfer.requested` acontecem na mesma transacao de banco:
+
+```text
+transactions
+outbox_events
+```
+
+No `account-service`, a movimentacao financeira, o registro de idempotencia e a gravacao do resultado tambem acontecem na mesma transacao de banco:
+
+```text
+accounts
+processed_transfer_events
+outbox_events
+```
+
+Um publicador agendado le eventos pendentes da `outbox_events`, publica no Kafka e marca como `PUBLISHED`.
+
+Estados da Outbox:
+
+```text
+PENDING
+PUBLISHED
+FAILED
+```
+
+Configuracoes atuais:
+
+```text
+OUTBOX_PUBLISH_INTERVAL_MS=1000
+OUTBOX_MAX_ATTEMPTS=5
+```
+
+Esse desenho evita perder eventos quando o banco confirma a operacao, mas o Kafka fica temporariamente indisponivel. O evento permanece salvo como `PENDING` e sera publicado quando o publicador conseguir enviar.
+
+## Observabilidade Operacional
+
+O gateway propaga o header `X-Correlation-Id`. Se o cliente nao enviar esse header, o gateway gera um UUID e repassa para os servicos internos. `account-service` e `transaction-service` incluem o valor no MDC dos logs.
+
+Endpoints operacionais:
+
+```text
+GET /api/v1/operations/transactions/summary
+  resumo de transacoes pendentes/falhadas, Outbox pendente/falhada e DLQs de resultado
+
+GET /api/v1/operations/transactions/pending
+  lista as 20 transacoes PENDING mais antigas
+
+GET /api/v1/operations/transactions/outbox/failed
+  lista os 20 eventos Outbox FAILED mais antigos do transaction-service
+
+GET /api/v1/operations/accounts/summary
+  resumo de transferencias processadas/falhadas, Outbox pendente/falhada e DLQ de requested
+
+GET /api/v1/operations/accounts/outbox/failed
+  lista os 20 eventos Outbox FAILED mais antigos do account-service
+```
+
+As mensagens em DLQ sao contadas por diferenca entre offsets iniciais e finais dos topicos:
+
+```text
+transaction.transfer.requested.dlq
+transaction.transfer.completed.dlq
+transaction.transfer.failed.dlq
+```
 
 ## Autor
 

@@ -6,6 +6,3 @@ WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'account_db')\gexec
 
 SELECT 'CREATE DATABASE transaction_db'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'transaction_db')\gexec
-
-SELECT 'CREATE DATABASE payment_db'
-WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'payment_db')\gexec

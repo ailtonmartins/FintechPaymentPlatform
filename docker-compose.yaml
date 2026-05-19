@@ -67,6 +67,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_started
     environment:
       SPRING_PROFILES_ACTIVE: dev
       DB_URL: jdbc:postgresql://postgres:5432/account_db
@@ -77,6 +79,10 @@ services:
       TRANSACTION_TRANSFER_REQUESTED_TOPIC: transaction.transfer.requested
       TRANSACTION_TRANSFER_COMPLETED_TOPIC: transaction.transfer.completed
       TRANSACTION_TRANSFER_FAILED_TOPIC: transaction.transfer.failed
+      KAFKA_RETRY_MAX_ATTEMPTS: 3
+      KAFKA_RETRY_INTERVAL_MS: 1000
+      OUTBOX_PUBLISH_INTERVAL_MS: 1000
+      OUTBOX_MAX_ATTEMPTS: 5
     expose:
       - "8082"
 
@@ -86,6 +92,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_started
     environment:
       SPRING_PROFILES_ACTIVE: dev
       DB_URL: jdbc:postgresql://postgres:5432/transaction_db
@@ -95,6 +103,10 @@ services:
       TRANSACTION_TRANSFER_REQUESTED_TOPIC: transaction.transfer.requested
       TRANSACTION_TRANSFER_COMPLETED_TOPIC: transaction.transfer.completed
       TRANSACTION_TRANSFER_FAILED_TOPIC: transaction.transfer.failed
+      KAFKA_RETRY_MAX_ATTEMPTS: 3
+      KAFKA_RETRY_INTERVAL_MS: 1000
+      OUTBOX_PUBLISH_INTERVAL_MS: 1000
+      OUTBOX_MAX_ATTEMPTS: 5
     expose:
       - "8083"
 

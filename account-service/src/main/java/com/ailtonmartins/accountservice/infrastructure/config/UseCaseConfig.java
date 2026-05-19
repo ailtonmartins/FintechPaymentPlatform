@@ -1,6 +1,8 @@
 package com.ailtonmartins.accountservice.infrastructure.config;
 
 import com.ailtonmartins.accountservice.application.port.AccountNumberGenerator;
+import com.ailtonmartins.accountservice.application.port.ProcessedTransferEventRepository;
+import com.ailtonmartins.accountservice.application.port.TransferResultPublisher;
 import com.ailtonmartins.accountservice.application.usecase.CreateAccountUseCase;
 import com.ailtonmartins.accountservice.application.usecase.CreditAccountUseCase;
 import com.ailtonmartins.accountservice.application.usecase.DebitAccountUseCase;
@@ -43,7 +45,11 @@ public class UseCaseConfig {
     }
 
     @Bean
-    public ProcessTransferUseCase processTransferUseCase(AccountRepository accountRepository) {
-        return new ProcessTransferUseCase(accountRepository);
+    public ProcessTransferUseCase processTransferUseCase(
+            AccountRepository accountRepository,
+            ProcessedTransferEventRepository processedTransferEventRepository,
+            TransferResultPublisher transferResultPublisher
+    ) {
+        return new ProcessTransferUseCase(accountRepository, processedTransferEventRepository, transferResultPublisher);
     }
 }

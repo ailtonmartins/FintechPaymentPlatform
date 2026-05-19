@@ -19,6 +19,10 @@ public class CompleteTransactionUseCase {
         Transaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new TransactionNotFoundException(transactionId));
 
+        if (transaction.isFinished()) {
+            return TransactionResult.from(transaction);
+        }
+
         transaction.complete();
 
         return TransactionResult.from(transactionRepository.save(transaction));
